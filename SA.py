@@ -367,7 +367,7 @@ if __name__ == '__main__':
 	print(best_sol)
 
 	for request in best_requests: 
-		print(f"{request.S_exe} {request.S_deliver} {request.T_wait} {request.catch_time}")
+		print(f"{request.vehicle_id} {request.service_type} {request.S_exe} {request.S_deliver} {request.T_wait} {request.catch_time}")
 
 	#print("count: " + str(count))
 
