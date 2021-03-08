@@ -35,14 +35,16 @@ class Request:
 		self.deadline = 0	
 		self.T_request = 0
 		self.T_compute = 0
-		self.T_deliver = 0
+		self.T_deliver = -1
 		self.shared = False
 		self.shared_with = -1
 		self.size = 0
 		self.S_exe = 0
 		self.S_deliver = 0
 		self.T_wait = 0
-		self.catch_time = 0
+		self.start_exe_time = 0
+		self.catch_time = -1
+
 
 
 def accumulate_memory(request, servers, S_deliver, finish_time, catch_time):
@@ -69,7 +71,8 @@ def wait_vehicle(request, S_deliver, finish_time):
 	#	print(vehicles[request.vehicle_id].range[S_deliver][finish_time])
 	#print("request.ID: " + str(request.ID) + " S_deliver: " + str(S_deliver))
 	#print("request.vehicle_id: " + str(request.vehicle_id) + " S_deliver: " + str(S_deliver))
-	for t in range(finish_time, T_MAX):
+	for t in range(finish_time, min(T_MAX, request.deadline+1)):
+		#print("t" + str(t))
 		T_wait_vehicle = t - finish_time
 		if(vehicles[request.vehicle_id].range[S_deliver][t] == 1):
 			#print("request "+str(request.ID) + "vehicles["+ str(request.vehicle_id) +"].range["+str(S_deliver)+"]["+str(t)+"] == 1")
@@ -89,7 +92,7 @@ def decide_S_deliver(servers, request, finish_compute_time):
 	T_list = []
 
 	for j in range(len(servers)):
-		#print("finish_compute_time: " + str(finish_compute_time))
+		#print("request.ID: " + str(request.ID) +" finish_compute_time: " + str(finish_compute_time))
 		T_deliver = services[request.service_type].T_deliver[request.S_exe][j]
 		#print("request.ID: " + str(request.ID) + " finish_compute_time: " + str(finish_compute_time))
 		finish_time = finish_compute_time + T_deliver
@@ -107,7 +110,7 @@ def decide_S_deliver(servers, request, finish_compute_time):
 
 	return request.S_deliver, request.catch_time 
 
-def decide_priority_2(requests, servers, services, S_exe):
+def decide_priority(requests, servers, services, S_exe):
 
 	queue = []
 	for r in servers[S_exe].exe_queue:
@@ -116,8 +119,17 @@ def decide_priority_2(requests, servers, services, S_exe):
 	#for request in queue:
 	#	if(request.deadline > T_MAX):
 	#		request.deadline = T_MAX
-	sorted_queue = sorted(queue, key=lambda x: x.size) #should be size or deadline?
-	#sorted_queue = sorted(queue, key=lambda x: x.deadline)
+
+	'''
+	#TODO: need a sorting funcion
+	sort first by deadline, then by size
+	'''
+	for request in requests:
+		if(request.deadline > T_MAX-1):
+			request.deadline = T_MAX-1
+			#print("hi")
+	#sorted_queue = sorted(queue, key=lambda x: x.deadline) #should be size or deadline?
+	sorted_queue = sorted(queue, key=lambda x: x.size)
 	#sorted_queue = sorted(queue, key = lambda x: (x.deadline, x.size)) #if same deadline, sort size 
 
 	for request in sorted_queue:
@@ -145,7 +157,7 @@ def decide_priority_2(requests, servers, services, S_exe):
 			#print("S_exe: " + str(S_exe) + "request "+str(sorted_queue[i].ID) + " shared with request " + str(sorted_queue[i].shared_with))
 		else:
 			if(T_wait < sorted_queue[i].deadline - sorted_queue[i].T_compute ):
-				T_wait = np.random.randint(T_wait, sorted_queue[i].deadline - sorted_queue[i].T_compute) 
+				T_wait = np.random.randint(T_wait, sorted_queue[i].deadline - sorted_queue[i].T_compute+1) 
 				#print("sorted_queue[i].deadline: " + str(sorted_queue[i].deadline))
 				#print("T_wait: "+ str(T_wait))
 			#sys.exit()
@@ -157,34 +169,57 @@ def decide_priority_2(requests, servers, services, S_exe):
 		#print("S_exe: " + str(S_exe) + "sorted_queue[i].T_compute: " + str(sorted_queue[i].T_compute))
 
 	return sorted_queue
-def find_sol_2(services, requests, servers, T_MAX):
+def find_sol(services, requests, servers, T_MAX):
 	#refresh the server
 	for server in servers:
 		server.memory = [0] * T_MAX
 	
+	#for server in servers:
+	#print("server.server_id: " + str(servers[0].server_id) + "memory(before): " + str(servers[0].memory))
 	all_max_memory_use = 0
 
 	for j in range(len(servers)):
-		exe_queue = decide_priority_2(requests, servers, services, j)
+		exe_queue = decide_priority(requests, servers, services, j)
+
 		for request in exe_queue:
 			S_exe = request.S_exe
 			earliest_start_time = request.T_request
-			start_exe_time = earliest_start_time + request.T_wait
-			#print("start_exe_time: " + str(start_exe_time) + "deadline: " + str(request.deadline))
-			if(start_exe_time >= request.deadline):
+			#request.start_exe_time = earliest_start_time + request.T_wait
+			request.start_exe_time = max(earliest_start_time, request.T_wait)
+			#print("request.ID: " + str(request.ID) +" start_exe_time: " + str(request.start_exe_time) + " deadline: " + str(request.deadline))
+			if(request.start_exe_time >= request.deadline):
+				#print("start_exe_time: "+ str(start_exe_time) + " request.deadline: " + str(request.deadline))
 				all_max_memory_use = 10000
 				continue		
-			finish_compute_time = start_exe_time + request.T_compute
+			finish_compute_time = request.start_exe_time + request.T_compute
 			S_deliver, catch_time = decide_S_deliver(servers, request, finish_compute_time)
+			#for request in requests:
+				#print("request.ID: " + str(request.ID) + " request.catch_time: " + str(request.catch_time ))
+
 			if(catch_time >= T_MAX):
-				all_max_memory_use = 10000
+				all_max_memory_use = 100000
 			#print("request.ID: " + str(request.ID) + " S_deliver: " + str(S_deliver))
 			finish_time = finish_compute_time  + services[request.service_type].T_deliver[S_exe][S_deliver]
 			#print("finish_time: " + str(finish_time) + " catch_time: " + str(catch_time))
+			#print("request.ID: " + str(request.ID) + " request.catch_time: " + str(request.catch_time ))
 			accumulate_memory(request, servers, S_deliver, finish_time, catch_time)
+			#if(request.ID == 0):
+				#print("request.ID: " + str(request.ID) + " request.catch_time: " + str(request.catch_time ))
+			#for request1 in requests:
+				#print("request.ID: " + str(request.ID) + " request.catch_time: " + str(request1.catch_time ))
+
 	#sum up memory usage 
 
+
+	#print("server.server_id: " + str(servers[0].server_id) + "memory(after): " + str(servers[0].memory))
+
 	#for request in requests:
+		#if(request.ID == 0):
+		#print("request.ID: " + str(request.ID) + " request.catch_time: " + str(request.catch_time ))
+	#for server in servers:
+	#	for r in server.exe_queue:
+	#		print("request.ID: " + str(requests[r].ID) + " request.catch_time: " + str(requests[r].catch_time ))
+			#print("request.ID: " + str(request.ID) + " request.catch_time: " + str(request.catch_time ))
 		#print("request " + str(request.ID) + " S_exe: " + str(request.S_exe) + " S_deliver: " + str(request.S_deliver))
 	#print("\n")
 
@@ -194,8 +229,10 @@ def find_sol_2(services, requests, servers, T_MAX):
 		#print("max_memory_use: " + str(max_memory_use))
 		all_max_memory_use += max_memory_use
 		#print(all_max_memory_use)
+	#if(all_max_memory_use < 10000):
+		#print("WOW")
 	return all_max_memory_use, requests
-def pick_neighbor_2(requests):
+def pick_neighbor(requests):
 	a = np.random.randint(0, len(requests))
 	servers[requests[a].S_exe].exe_queue.remove(a)
 	requests[a].S_exe = np.random.randint(0, len(servers))
@@ -205,7 +242,7 @@ def pick_neighbor_2(requests):
 def get_init_sol(requests):
 	for r in range(len(requests)):
 		k = requests[r].service_type
-		requests[r].S_exe = 0
+		requests[r].S_exe = 1
 		servers[requests[r].S_exe].exe_queue.append(r)
 		requests[r].T_request = services[k].T_request[requests[r].S_exe]
 		requests[r].T_compute = services[k].T_compute[requests[r].S_exe]
@@ -219,6 +256,15 @@ def init_requests(requests, services):
 		request.deadline = services[k].deadline[i]
 		request.freshness = services[k].freshness[i]
 		request.size = services[k].size
+		#requests.T_request = services[k].T_request[requests[r].S_exe]
+		#requests[r].T_compute = services[k].T_compute[requests[r].S_exe]
+		request.T_deliver = -1
+		request.shared = False
+		request.shared_with = -1
+		#request.S_exe = -1
+		#request.S_deliver = -1
+		request.T_wait = -1
+		request.catch_time = -1
 		#print("request.size " + str(request.size ))
 	#sys.exit()
 
@@ -329,7 +375,7 @@ if __name__ == '__main__':
 	init_requests(requests, services)
 	get_init_sol(requests)
 	
-	cur_sol, requests = find_sol_2(services, requests, servers, T_MAX)
+	cur_sol, requests = find_sol(services, requests, servers, T_MAX)
 	
 	best_sol = cur_sol
 	best_requests = copy.deepcopy(requests)
@@ -337,6 +383,10 @@ if __name__ == '__main__':
 	# so, use deepcopy to copy by value 
 
 	#print("init_sol = " + str(best_sol))
+	#print(best_sol)
+
+	#for request in best_requests: 
+		#print(f"{request.vehicle_id} {request.service_type} {request.S_exe} {request.S_deliver} {request.start_exe_time} {request.catch_time}")
 	#sys.exit()
 
 
@@ -345,8 +395,9 @@ if __name__ == '__main__':
 	count = 0
 	while T > 1:
 		count+= 1
-		pick_neighbor_2(requests)
-		new_sol, requests = find_sol_2(services, requests, servers, T_MAX)
+		#init_requests(requests, services)
+		pick_neighbor(requests)
+		new_sol, requests = find_sol(services, requests, servers, T_MAX)
 		#print("\n")
 		delta_cost = new_sol - cur_sol
 		if(delta_cost <= 0):
@@ -367,7 +418,7 @@ if __name__ == '__main__':
 	print(best_sol)
 
 	for request in best_requests: 
-		print(f"{request.vehicle_id} {request.service_type} {request.S_exe} {request.S_deliver} {request.T_wait} {request.catch_time}")
+		print(f"{request.vehicle_id} {request.service_type} {request.S_exe} {request.S_deliver} {request.start_exe_time} {request.catch_time}")
 
 	#print("count: " + str(count))
 
