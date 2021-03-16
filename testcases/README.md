@@ -41,3 +41,12 @@ Medium testcase. $I = 2$, $J = 9$, $K = 12$, $T_{max}=50$. Generated automatical
 10.in
 ---
 Medium testcase. $I = 1$, $J = 7$, $K = 24$, $T_{max}=100$. Generated automaticallly. Objective value is 55 (calculated manually).
+
+11.in
+---
+Large testcase. $I = 2$, $J = 8$, $K = 63$, $T_{max}=200$. Generated automaticallly. Objective value is 277 (calculated manually).
+
+12.in
+---
+Large testcase. $I = 9$, $J = 11$, $K = 54$, $T_{max}=499$. Generated automaticallly. 
+
