@@ -48,5 +48,5 @@ Large testcase. $I = 2$, $J = 8$, $K = 63$, $T_{max}=200$. Generated automatical
 
 12.in
 ---
-Large testcase. $I = 9$, $J = 11$, $K = 54$, $T_{max}=499$. Generated automaticallly. 
+Large testcase. $I = 9$, $J = 11$, $K = 54$, $T_{max}=499$. Generated automaticallly.
 
