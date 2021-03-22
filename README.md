@@ -59,3 +59,9 @@ config = {
     'MEMORY_STD': 5
 }
 ```
+
+### Workload Estimation
+The filenames of a generated testcase will be in terms of `{testcase_index}_{estimated_workload}.in`. For example, `1_0.067.in`.
+
+The workload is estmated by the formulation below, where $E[C_k]$ is the expected computed time of a service.
+$$W = \frac{I \times \sum_k{E[C_k]}}{J \times T}$$
