@@ -28,8 +28,9 @@ config = {
     'PROB_LOW': 0.2,
     'PROB_HIGH': 0.8,
 
-    'FRESHNESS_MEAN': 50,
-    'FRESHNESS_STD': 30,
+    'FRESHNESS_MEAN': 10,
+    'FRESHNESS_STD': 1,
+    'FRESHNESS_MIN': 30,
 
     'LINEGER_MEAN': 15,
     'LINGER_STD': 10,
@@ -46,21 +47,21 @@ I = config['I']
 J = config['J']
 K = config['K']
 MAX_TIME = config['MAX_TIME']
-# Initialization
-T = np.zeros((J, K), dtype=int)
-C = np.full((J, K), np.inf, dtype=int)
-Tv = np.full((J, J, K), np.inf, dtype=int)
-D = np.full((I, K), -1, dtype=int)
-F = np.full((I, K), -1, dtype=int)
-R = np.full((I, J, MAX_TIME), 0, dtype=int)
-M = np.zeros((K), dtype=int)
-M_bar = np.full((J), 9999999, dtype=int)
 
 
 if (not os.path.exists(TESTCASE_NAME)):
     os.mkdir(TESTCASE_NAME)
 
 for testcase_index in range(TESTCASE_NUMS):
+    # Initialization
+    T = np.zeros((J, K), dtype=int)
+    C = np.full((J, K), np.inf, dtype=int)
+    Tv = np.full((J, J, K), np.inf, dtype=int)
+    D = np.full((I, K), -1, dtype=int)
+    F = np.full((I, K), -1, dtype=int)
+    R = np.full((I, J, MAX_TIME), 0, dtype=int)
+    M = np.zeros((K), dtype=int)
+    M_bar = np.full((J), 9999999, dtype=int)
 
     '''
     --------------------------------------------------------------------
@@ -123,6 +124,7 @@ for testcase_index in range(TESTCASE_NUMS):
     PROB_HIGH = config['PROB_HIGH']
     FRESHNESS_MEAN = config['FRESHNESS_MEAN']
     FRESHNESS_STD = config['FRESHNESS_STD']
+    FRESHNESS_MIN = config['FRESHNESS_MIN']
     EARLIEST_DEADLINE = config['EARLIEST_DEADLINE']
     workload = 0
     Service_prob = np.array([(PROB_HIGH - PROB_LOW) * np.random.random() + PROB_LOW for _ in range(K)])
@@ -131,7 +133,11 @@ for testcase_index in range(TESTCASE_NUMS):
             if (np.random.random() < Service_prob[k]):
                 workload += C_avg[k]
                 D[i][k] = np.random.randint(EARLIEST_DEADLINE, high=MAX_TIME, dtype=int)
-                F[i][k] = int(np.random.normal(FRESHNESS_MEAN,  FRESHNESS_STD) // 1)
+
+                fresh = int(np.random.normal(FRESHNESS_MEAN,  FRESHNESS_STD) // 1)
+                F[i][k] = FRESHNESS_MIN if fresh < FRESHNESS_MIN else fresh
+
+
 
     workload = workload / (J * MAX_TIME)
 
