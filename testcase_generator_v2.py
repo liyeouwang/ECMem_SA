@@ -59,7 +59,8 @@ for testcase_index in range(TESTCASE_NUMS):
     Tv = np.full((J, J, K), np.inf, dtype=int)
     D = np.full((I, K), -1, dtype=int)
     F = np.full((I, K), -1, dtype=int)
-    R = np.full((I, J, MAX_TIME), 0, dtype=int)
+    # R = np.full((I, J, MAX_TIME), 0, dtype=int)
+    R = [[] for _ in range(I)]
     M = np.zeros((K), dtype=int)
     M_bar = np.full((J), 9999999, dtype=int)
 
@@ -148,9 +149,9 @@ for testcase_index in range(TESTCASE_NUMS):
 
     TBD:
     1. The distribution of time that a vehicle is lingering in a server's 
-        area: normal(LINEGER_MEAN, LINGER_STD)
+        area: normal(LINGER_MEAN, LINGER_STD)
     '''
-    LINEGER_MEAN = config['LINEGER_MEAN']
+    LINGER_MEAN = config['LINGER_MEAN']
     LINGER_STD = config['LINGER_STD']
     for i in range(I):
         t = 0
@@ -158,9 +159,11 @@ for testcase_index in range(TESTCASE_NUMS):
         pos_x = initial_pos // X
         pos_y = initial_pos % X
         while t < MAX_TIME:
-            linger_time = int(np.random.normal(LINEGER_MEAN, LINGER_STD)//1)
-
-            R[i][pos_x * X + pos_y][t:t + linger_time] = 1
+            linger_time = int(np.random.normal(LINGER_MEAN, LINGER_STD)//1)
+            if linger_time <= 0:
+                linger_time = 1
+            R[i].append((t, pos_x * X + pos_y))
+            # R[i][pos_x * X + pos_y][t:t + linger_time] = 1
 
             # A vehicle can only move (north, south, east, west).
             random_walk = np.random.randint(0, 4, dtype=int)
@@ -172,11 +175,10 @@ for testcase_index in range(TESTCASE_NUMS):
                 pos_y = pos_y + 1
             elif (random_walk == 3):
                 pos_y = pos_y - 1
-            pos_x = pos_x // X
-            pos_y = pos_x % X
+            pos_x = pos_x % X
+            pos_y = pos_y % Y
             t += linger_time
-
-        R[i][pos_x * X + pos_y][t:] = 1
+        # R[i][pos_x * X + pos_y][t:] = 1
 
     '''
     --------------------------------------------------------------------
@@ -229,10 +231,12 @@ for testcase_index in range(TESTCASE_NUMS):
             f.write("\n")
         # R
         for i in range(I):
-            for j in range(J):
-                for t in range(0, MAX_TIME):
-                    f.write(f"{R[i][j][t]} ")
-                f.write("\n")
+            for r, route in enumerate(R[i]):
+                if r == len(R[i])-1:
+                    f.write(f"{route[0]} {route[1]}")
+                else:
+                    f.write(f"{route[0]} {route[1]}, ")
+            f.write("\n")
         # M
         for k in range(K):
             f.write(f"{M[k]} ")

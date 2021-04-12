@@ -65,3 +65,19 @@ The filenames of a generated testcase will be in terms of `{testcase_index}_{est
 
 The workload is estmated by the formulation below, where $E[C_k]$ is the expected computed time of a service.
 $$W = \frac{I \times \sum_k{E[C_k]}}{J \times T}$$
+
+### 2021/04/12 New Testcase Format
+Update R format to reduce file size.
+```python
+# example
+# There are I rows, each row specifies the route of vehicle i.
+# Every row is several pairs of number separated by ",".
+# For example:
+# 0 5, 11 3, 23 4, 24 2, 43 4, 52 2, 64 4, 77 2, 85 4
+# The sequence above tells the route where the vehicle is in
+# server 5 during [0, 11)
+# server 3 during [11, 23)
+# ...
+# server 4 durint [85, MAXTIME)
+```
+  
