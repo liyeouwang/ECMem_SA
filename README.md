@@ -52,7 +52,7 @@ config = {
     'FRESHNESS_MEAN': 50,
     'FRESHNESS_STD': 30,
 
-    'LINEGER_MEAN': 15,
+    'LINGER_MEAN': 15,
     'LINGER_STD': 10,
 
     'MEMORY_MEAN': 20,
@@ -80,4 +80,3 @@ Update R format to reduce file size.
 # ...
 # server 4 when t = ...., MAX_TIME-1
 ```
-  

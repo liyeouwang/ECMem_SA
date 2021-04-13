@@ -1,25 +1,25 @@
 import numpy as np
 import os
 import json
-
+from random import shuffle
 
 config = {
     'TESTCASE_NAME': 'workload',
-    'TESTCASE_NUMS': 5,
+    'TESTCASE_NUMS': 1,
     # The servers will be allocated at a X * Y grid.
     # J should always eqaul to X * Y.
-    'X': 2,
-    'Y': 3,
-    'J': 6,
+    'X': 5,
+    'Y': 5,
+    'J': 25,
 
     # The number of vehicles.
-    'I': 10,
+    'I': 1,
     
     # The number of service types.
     'K': 5,
     # The time unit limit
-    'MAX_TIME': 100,
-    'EARLIEST_DEADLINE': 80,
+    'MAX_TIME': 200,
+    'EARLIEST_DEADLINE': 0,
 
     # The properties of a service.
     'DIFF_LOW': 1,
@@ -32,8 +32,8 @@ config = {
     'FRESHNESS_STD': 1,
     'FRESHNESS_MIN': 30,
 
-    'LINGER_MEAN': 15,
-    'LINGER_STD': 10,
+    'LINGER_MEAN': 5,
+    'LINGER_STD': 1,
 
     'MEMORY_MEAN': 20,
     'MEMORY_STD': 5
@@ -155,34 +155,70 @@ for testcase_index in range(TESTCASE_NUMS):
     LINGER_STD = config['LINGER_STD']
     for i in range(I):
         t = 0
-        initial_pos = np.random.randint(0, high=J, dtype=int)
-        pos_x = initial_pos // X
-        pos_y = initial_pos % X
+        src_loc = np.random.randint(0, high=J, dtype=int)
         while True:
-            linger_time = int(np.random.normal(LINGER_MEAN, LINGER_STD)//1)
-            if linger_time <= 0:
-                linger_time = 1
-            if (t + linger_time >= MAX_TIME):
-                R[i].append((MAX_TIME - t, pos_x * X + pos_y))
+            # Determine destination.
+            dst_loc = np.random.randint(0, high=J, dtype=int)
+            src_x = src_loc // X
+            src_y = src_loc % X
+            dst_x = dst_loc // X
+            dst_y = dst_loc % X
+            delta_x = dst_x - src_x
+            delta_y = dst_y - src_y
+
+
+            '''
+                The direction definition.
+                Below permutate the direction of the vehicle.
+                For example, the vehicle is going from (1, 1) to (3, 3).
+                The route can be any permutation of [1, 1, 3, 3].
+                The number indicates the direction.
+                            4
+                            |
+                            |
+                    2 ------------> 1 x
+                            |
+                            |     
+                            v
+                            3
+                            y
+            '''
+            route = []
+            if (delta_x > 0):
+                route.extend([1 for _ in range(delta_x)])
+            if (delta_x < 0):
+                route.extend([2 for _ in range(-delta_x)])
+            if (delta_y > 0):
+                route.extend([3 for _ in range(delta_x)])
+            if (delta_y < 0):
+                route.extend([4 for _ in range(-delta_y)])
+            shuffle(route)
+
+            
+            for r in route:
+                linger_time = int(np.random.normal(LINGER_MEAN, LINGER_STD)//1)
+                if linger_time <= 0:
+                    linger_time = 1
+                if (t + linger_time >= MAX_TIME):
+                    R[i].append((MAX_TIME - t, src_x * X + src_y))
+                    t += linger_time
+                    break
+                R[i].append((linger_time, src_x * X + src_y))
+                t += linger_time
+                if (r == 1):
+                    src_x = src_x + 1
+                elif (r == 2):
+                    src_x = src_x - 1
+                elif (r == 3):
+                    src_y = src_y + 1
+                elif (r == 4):
+                    src_y = src_y - 1
+
+            if t >= MAX_TIME:
                 break
-            R[i].append((linger_time, pos_x * X + pos_y))
-            # R[i][pos_x * X + pos_y][t:t + linger_time] = 1
 
-            # A vehicle can only move (north, south, east, west).
-            random_walk = np.random.randint(0, 4, dtype=int)
-            if (random_walk == 0):
-                pos_x = pos_x + 1
-            elif (random_walk == 1):
-                pos_x = pos_x - 1
-            elif (random_walk == 2):
-                pos_y = pos_y + 1
-            elif (random_walk == 3):
-                pos_y = pos_y - 1
-            pos_x = pos_x % X
-            pos_y = pos_y % Y
-            t += linger_time
+            src_loc = dst_loc
 
-        # R[i][pos_x * X + pos_y][t:] = 1
 
     '''
     --------------------------------------------------------------------
