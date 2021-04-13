@@ -32,7 +32,7 @@ config = {
     'FRESHNESS_STD': 1,
     'FRESHNESS_MIN': 30,
 
-    'LINEGER_MEAN': 15,
+    'LINGER_MEAN': 15,
     'LINGER_STD': 10,
 
     'MEMORY_MEAN': 20,
