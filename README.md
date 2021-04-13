@@ -73,11 +73,11 @@ Update R format to reduce file size.
 # There are I rows, each row specifies the route of vehicle i.
 # Every row is several pairs of number separated by ",".
 # For example:
-# 0 5, 11 3, 23 4, 24 2, 43 4, 52 2, 64 4, 77 2, 85 4
+# 22 1, 10 3, 12 2, 8 4, 5 2, 20 0, 6 2, 17 4
 # The sequence above tells the route where the vehicle is in
-# server 5 during [0, 11)
-# server 3 during [11, 23)
+# server 1 when t = 0, 1, 2, ..., 21
+# server 3 when t = 22, 23, 24, ..., 31
 # ...
-# server 4 durint [85, MAXTIME)
+# server 4 when t = ...., MAX_TIME-1
 ```
   

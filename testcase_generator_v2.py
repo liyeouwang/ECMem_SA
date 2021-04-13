@@ -158,11 +158,14 @@ for testcase_index in range(TESTCASE_NUMS):
         initial_pos = np.random.randint(0, high=J, dtype=int)
         pos_x = initial_pos // X
         pos_y = initial_pos % X
-        while t < MAX_TIME:
+        while True:
             linger_time = int(np.random.normal(LINGER_MEAN, LINGER_STD)//1)
             if linger_time <= 0:
                 linger_time = 1
-            R[i].append((t, pos_x * X + pos_y))
+            if (t + linger_time >= MAX_TIME):
+                R[i].append((MAX_TIME - t, pos_x * X + pos_y))
+                break
+            R[i].append((linger_time, pos_x * X + pos_y))
             # R[i][pos_x * X + pos_y][t:t + linger_time] = 1
 
             # A vehicle can only move (north, south, east, west).
@@ -178,6 +181,7 @@ for testcase_index in range(TESTCASE_NUMS):
             pos_x = pos_x % X
             pos_y = pos_y % Y
             t += linger_time
+
         # R[i][pos_x * X + pos_y][t:] = 1
 
     '''
