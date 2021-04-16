@@ -72,7 +72,6 @@ for testcase_index in range(TESTCASE_NUMS):
     We also randomly define Service_Tv to be the computed result loadings 
     of services. 
     Then the transmitting time is Service_Tv * (|x1-x2| + |y1-y2|).
-
     TODO:
         1. The distribution of Service_Tv. Right now it is uniform(1, 5).
     '''
@@ -97,7 +96,6 @@ for testcase_index in range(TESTCASE_NUMS):
     Service_difficulty = uniform(DIFF_LOW, DIFF_HIGH),and each server
     has an Server_ability = uniform(1, ABILITY_LEVEL) to describe if 
     the server is good at service k.
-
     TODO:
         1. Uniformly decide the power of servers may not be a good idea.
         2. Right now, we don't have specialized servers that is good at
@@ -115,7 +113,6 @@ for testcase_index in range(TESTCASE_NUMS):
     '''
     --------------------------------------------------------------------
     This part decides D and F.
-
     TBD:
     1. The probability of a service: uniform(PROB_LOW, PROB_HIGH)
     2. The distribution of deadline: uniform(0, MAX_TIME)
@@ -146,7 +143,6 @@ for testcase_index in range(TESTCASE_NUMS):
     --------------------------------------------------------------------
     This part decides R. The map is circullar, which means that when a
     vehicle exceeds the edge, it will appear at the other side.
-
     TBD:
     1. The distribution of time that a vehicle is lingering in a server's 
         area: normal(LINGER_MEAN, LINGER_STD)
@@ -223,7 +219,6 @@ for testcase_index in range(TESTCASE_NUMS):
     '''
     --------------------------------------------------------------------
     This part decides M.
-
     TBD:
     1. The distribution of M: normal(MEMORY_MEAN, MEMORY_STD)
     '''

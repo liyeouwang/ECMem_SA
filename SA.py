@@ -20,8 +20,28 @@ import time
 import bisect
 import matplotlib.pyplot as plt
 
-T_MAX = 0
-LARGE_NUM = 1000000
+config = {
+    "LARGE_NUM": 1000000,
+
+    #Method to obtain initail solution
+    #"GET_INITIAL": 2,
+    "CREATE_PLOT_FILE": True,
+    "PLOT_FILE": "plot/test1_init4.out",
+
+    #Simulated annealing parameters
+    "T": 1000000,
+    "r": 0.9999
+    
+
+}
+
+
+'''
+    --------------------------------------------------------------------
+    This part define T.
+    
+'''
+
 
 class Vehicle:
 	def __init__(self, vehicle_id, num_servers): 
@@ -48,9 +68,9 @@ class Server:
 		self.in_range = [0] * num_vehicles
 
 class Request:
-	def __init__(self, vehicle_id, service_type, ID):
+	def __init__(self, vehicle_id, service_type, request_id):
 		self.service_type = service_type
-		self.ID = ID
+		self.request_id = request_id
 		self.vehicle_id = vehicle_id
 		self.deadline = 0	
 		self.T_request = 0
@@ -75,12 +95,13 @@ def check_feasibility(requests):
 			return False
 	return True
 
-def accumulate_memory(request, servers, S_deliver, finish_time, catch_time):
-	if(catch_time >= 10000):
+#def accumulate_memory(request, servers, S_deliver, finish_time, catch_time):
+def accumulate_memory(request):
+	if(request.catch_time >= 10000):
 		return
 	
-	for t in range(finish_time, catch_time):
-		servers[S_deliver].memory[t] += request.size
+	for t in range(request.finish_time, request.catch_time):
+		servers[request.S_deliver].memory[t] += request.size
 
 def wait_vehicle(request, S_deliver, finish_time):
 	T_wait_vehicle = 0
@@ -156,7 +177,7 @@ def decide_priority(requests, servers, services, S_exe):
 			if(request.service_type == service_type):
 				if(appeared == False):
 					appeared = True
-					share_id = request.ID
+					share_id = request.request_id
 				else:
 					request.shared_with = share_id
 					request.shared = True
@@ -169,14 +190,25 @@ def decide_priority(requests, servers, services, S_exe):
 			sorted_queue[i].T_wait = requests[sorted_queue[i].shared_with].T_wait
 		else:
 			#TODO: need to come up with a better solution for this part
-			if(T_wait < sorted_queue[i].deadline - sorted_queue[i].T_compute ):
-				T_wait = np.random.randint(T_wait, sorted_queue[i].deadline - sorted_queue[i].T_compute+1) 
+			#if(T_wait < sorted_queue[i].deadline - sorted_queue[i].T_compute ):
+			#	T_wait = np.random.randint(T_wait, sorted_queue[i].deadline - sorted_queue[i].T_compute+1) 
 
 			T_wait = max(T_wait, sorted_queue[i].T_request)
 			sorted_queue[i].T_wait = T_wait  
 			T_wait += sorted_queue[i].T_compute	
 		
 	return sorted_queue
+
+def calculate_max_memory_use():
+	all_max_memory_use = 0
+	for request in requests:
+		accumulate_memory(request)
+
+	for server in servers:
+		max_memory_use = max(server.memory)
+		all_max_memory_use += max_memory_use
+	return all_max_memory_use
+
 def find_sol(services, requests, servers, T_MAX):
 	#refresh the server
 	for server in servers:
@@ -205,7 +237,8 @@ def find_sol(services, requests, servers, T_MAX):
 				all_max_memory_use = 1000000000
 				continue
 			request.finish_time = finish_compute_time  + services[request.service_type].T_deliver[request.S_exe][request.S_deliver]
-			accumulate_memory(request, servers, request.S_deliver, request.finish_time, request.catch_time)
+			#accumulate_memory(request, servers, request.S_deliver, request.finish_time, request.catch_time)
+			accumulate_memory(request)
 
 	for server in servers:
 		max_memory_use = max(server.memory)
@@ -213,12 +246,14 @@ def find_sol(services, requests, servers, T_MAX):
 
 	return all_max_memory_use, requests
 
-def find_sol_2(services, requests, servers, T_MAX, servers_modified):
+
+#def find_sol_2(services, requests, servers, T_MAX, servers_modified):
+def find_sol_2():
 	#refresh the server
 	for server in servers:
 		server.memory = [0] * T_MAX
 	
-	all_max_memory_use = 0
+	#all_max_memory_use = 0
 
 	for j in range(len(servers_modified)):
 		exe_queue = decide_priority(requests, servers, services, servers_modified[j])
@@ -232,15 +267,11 @@ def find_sol_2(services, requests, servers, T_MAX, servers_modified):
 
 	is_feasible = check_feasibility(requests)
 	if(is_feasible == False):
-		all_max_memory_use = LARGE_NUM
+		all_max_memory_use = config["LARGE_NUM"]
 		return all_max_memory_use, requests
 
-	for request in requests:
-		accumulate_memory(request, servers, request.S_deliver, request.finish_time, request.catch_time)
-
-	for server in servers:
-		max_memory_use = max(server.memory)
-		all_max_memory_use += max_memory_use
+	else:
+		all_max_memory_use = calculate_max_memory_use()
 
 	return all_max_memory_use, requests
 def pick_neighbor(requests, servers_modified):
@@ -265,6 +296,10 @@ def pick_neighbor(requests, servers_modified):
 
 #origin
 def get_init_sol():
+	servers_modified.clear()
+	for s in range(len(servers)):
+		servers_modified.append(s)
+
 	for r in range(len(requests)):
 		k = requests[r].service_type
 		#requests[r].S_exe = 1
@@ -281,6 +316,10 @@ def get_init_sol():
 
 #find j such that T is minimum
 def get_init_sol_1():
+	servers_modified.clear()
+	for s in range(len(servers)):
+		servers_modified.append(s)
+
 	for r in range(len(requests)):
 		k = requests[r].service_type
 		#requests[r].S_exe = 1
@@ -297,6 +336,10 @@ def get_init_sol_1():
 
 #find j such that T + C is minimum
 def get_init_sol_2():
+	servers_modified.clear()
+	for s in range(len(servers)):
+		servers_modified.append(s)
+
 	for r in range(len(requests)):
 		k = requests[r].service_type
 		TC_list = []
@@ -308,29 +351,12 @@ def get_init_sol_2():
 		requests[r].T_request = services[k].T_request[requests[r].S_exe]
 		requests[r].T_compute = services[k].T_compute[requests[r].S_exe]
 
-#find j such that T + C in range 		
-def get_init_sol_3():
-	for r in range(len(requests)):
-		k = requests[r].service_type
-		requests[r].S_exe = np.random.randint(0, len(servers))
-		for j in range(len(servers)):
-			#TC_list.append(services[k].T_request[j] + services[k].T_compute[j])		
-			t = services[k].T_request[j] + services[k].T_compute[j]+1
-			if(t >= T_MAX):
-				continue
-			if(vehicles[requests[r].vehicle_id].range[j][t] == 1):
-				requests[r].S_exe = j
-				# what if j has been assigned too many tasks?
-			
-
-		
-		#requests[r].S_exe = services[k].T_request.index(min(services[k].T_request))
-		servers[requests[r].S_exe].exe_queue.append(r)
-		requests[r].T_request = services[k].T_request[requests[r].S_exe]
-		requests[r].T_compute = services[k].T_compute[requests[r].S_exe]
-
 #find j such that T + C + Tv in range 
 def get_init_sol_4():
+	servers_modified.clear()
+	for s in range(len(servers)):
+		servers_modified.append(s)
+
 	for r in range(len(requests)):
 		k = requests[r].service_type
 		requests[r].S_exe = np.random.randint(0, len(servers))
@@ -349,7 +375,11 @@ def get_init_sol_4():
 		requests[r].T_compute = services[k].T_compute[requests[r].S_exe]
 
 #prune j whose T + C > freshness or deadline
-def get_init_sol_5():
+def get_init_sol_3():
+	servers_modified.clear()
+	for s in range(len(servers)):
+		servers_modified.append(s)
+
 	# each request needs to maintain a possible j list
 
 	for r in range(len(requests)):
@@ -366,17 +396,19 @@ def get_init_sol_5():
 		requests[r].T_request = services[k].T_request[requests[r].S_exe]
 		requests[r].T_compute = services[k].T_compute[requests[r].S_exe]
 
-def pick_neighbor_5(requests):
+def pick_neighbor_3(requests):
 	a = np.random.randint(0, len(requests))
+	#servers_modified.clear()
+	#servers_modified.append(requests[a].S_exe)
 	servers[requests[a].S_exe].exe_queue.remove(a)
-	#requests[a].S_exe = np.random.randint(0, len(servers))
-	#requests[a].S_exe = 1
+
 	rand_num = np.random.randint(0, 100)
 	if(np.random.randint(0, 100) > -1):
 		requests[a].S_exe = requests[a].possible_S_exes[np.random.randint(0, len(requests[a].possible_S_exes))]
 	else:
 		k = requests[a].service_type
 		requests[a].S_exe = services[k].T_request.index(min(services[k].T_request))
+	#servers_modified.append(requests[a].S_exe)
 	requests[a].T_request = services[requests[a].service_type].T_request[requests[a].S_exe]
 	servers[requests[a].S_exe].exe_queue.append(a)
 	requests[a].T_compute = services[requests[a].service_type].T_compute[requests[a].S_exe]
@@ -399,7 +431,8 @@ def init_requests(requests, services):
 		request.catch_time = -1
 	#sys.exit()
 
-def read_inputs(services, servers, vehicles, requests):
+#def read_inputs(services, servers, vehicles, requests):
+def read_inputs():
 
 	num_vehicles = int(input())
 	num_servers = int(input())	
@@ -407,47 +440,42 @@ def read_inputs(services, servers, vehicles, requests):
 
 	global T_MAX
 	T_MAX = int(input())
-	for s in range(num_servers):
-		servers.append(Server(s, num_vehicles, T_MAX))
+
+	# number of servers J
+	for j in range(num_servers):
+		servers.append(Server(j, num_vehicles, T_MAX))
+
+	# number of vehicles I
 	for i in range(num_vehicles):
 		vehicles.append(Vehicle(i, num_servers))
+
+	# number of services K
 	for k in range(num_services):
 		services.append(Service(k, num_servers, num_vehicles))
 
+	# earliest start-execution time of service k in server j (T)
 	for j in range(num_servers):
 		tmp = [int(x) for x in input().split()]
 		for k in range(num_services):
 			services[k].T_request[j] = tmp[k]
-			
-			#sys.exit()
 
+	# computation time of service k in server j (C)
 	for j in range(num_servers):
 		T_computes = [int(x) for x in input().split()]
 		for k in range(num_services):
 			services[k].T_compute[j] = T_computes[k]
-	'''
-	for k in range(num_services):
-		print(services[k].T_compute)
-	'''
 
+	# delivery time of service k from server j to server jj (Tv)
 	for k in range(num_services):
 		for j in range(num_servers):
 			services[k].T_deliver[j] = [0] * num_servers
-
 	for j in range(num_servers):
 		for jj in range(num_servers):
 			T_delivers = [int(x) for x in input().split()]
 			for k in range(num_services):
-				services[k].T_deliver[j][jj] = T_delivers[k]
-	'''
-	for j in range(num_servers):
-		for jj in range(num_servers):
-			for k in range(num_services):
-				print(services[k].T_deliver[j][jj])   
-			print("\n") 
-		print("\n") 	
-	'''		
+				services[k].T_deliver[j][jj] = T_delivers[k]	
 
+	# deadline of service k for vehicle i 
 	num_requests = 0
 	for i in range(num_vehicles):
 		deadlines = [int(x) for x in input().split()]
@@ -456,22 +484,19 @@ def read_inputs(services, servers, vehicles, requests):
 			if(deadlines[k] != -1):
 				requests.append(Request(i, k, num_requests))
 				num_requests += 1
-	'''
-	for k in range(num_services):
-		print(services[k].deadline)
-	'''
 
+	# freshness of service k for vehicle i 
 	for i in range(num_vehicles):
 		freshnesses = [int(x) for x in input().split()]
 		for k in range(num_services):
 			services[k].freshness[i] = freshnesses[k]
 	
-
+	# if vehicle i is in the covering range of server j (0 or 1)
 	for i in range(num_vehicles):
 		for j in range(num_servers):
 			vehicles[i].range[j] = [0] * T_MAX
 
-	
+	#
 	for j in range(num_servers):
 		for i in range(num_vehicles):
 			servers[j].in_range[i] = []
@@ -484,90 +509,85 @@ def read_inputs(services, servers, vehicles, requests):
 				vehicles[i].range[j][t] = ranges[t]
 				if(ranges[t] == 1):
 					servers[j].in_range[i].append(t)
-			#print(servers[j].in_range[i])
-	'''
-	for i in range(num_vehicles):
-		for j in range(num_servers):
-			print(vehicles[i].range[j])
-	'''
-	#sys.exit()
 
 	sizes = [int(x) for x in input().split()]
 	for k in range(num_services):
 		services[k].size = sizes[k]
-		#print(services[k].size)
 
 	capacities = [int(x) for x in input().split()]
 	for j in range(num_servers):
 		servers[j].capacity = capacities[j]
-		#print(servers[j].capacity)
 
 if __name__ == '__main__':
+	#random seed
+	np.random.seed(1)
+
 	start_time = time.time()
 
+	T_MAX = 0
 	servers = []	
 	services = []
 	vehicles = []
 	requests = []
-
 	servers_modified = []
-	#read input file	
-	read_inputs(services, servers, vehicles, requests)
+
+	#read input file
+	read_inputs()	
+	#read_inputs(services, servers, vehicles, requests)
+
+	#initailize some parameters 
 	init_requests(requests, services)
-	mem = 0
-	for request in requests:
-		mem += request.size
-	#print(mem)
-	get_init_sol_2()
-	
-	cur_sol, requests = find_sol(services, requests, servers, T_MAX)
-	
+
+	get_init_sol_4()
+	end_time = time.time()
+	print(f"time: {end_time - start_time}")
+	#cur_sol, requests = find_sol(services, requests, servers, T_MAX)
+	cur_sol, requests = find_sol_2()
+
 	best_sol = cur_sol
 	best_requests = copy.deepcopy(requests)
 	# remind: python passes lists by reference! requests changes, best_requests changes, too 
 	# so, use deepcopy to copy by value 
-
 	print("init_sol = " + str(best_sol))
-	#print(best_sol)
-
-	#for request in best_requests: 
-		#print(f"{request.vehicle_id} {request.service_type} {request.S_exe} {request.S_deliver} {request.start_exe_time} {request.catch_time}")
-	#sys.exit()
 
 
-	T = 1000
-	r = 0.999
+	T = config["T"]
+	r = config["r"]
 	count = 0
 	counts = []
 	sols = []
 	while T > 1:
 		count+= 1
+		#pick_neighbor_3(requests)
 		pick_neighbor(requests, servers_modified)
-		#pick_neighbor(requests)
 		#new_sol, requests = find_sol(services, requests, servers, T_MAX)
-		new_sol, requests = find_sol_2(services, requests, servers, T_MAX, servers_modified)
+		#new_sol, requests = find_sol_2(services, requests, servers, T_MAX, servers_modified)
+		new_sol, requests = find_sol_2()
 		#print("\n")
 		delta_cost = new_sol - cur_sol
 		if(delta_cost <= 0):
 			cur_sol = new_sol
 			if(cur_sol < best_sol):
-				sols.append(cur_sol)
-				counts.append(count)
+				
 				best_sol = cur_sol
 				best_requests = copy.deepcopy(requests)
 
 				print("best_sol = " + str(best_sol))
-				#if(best_sol == 0):
+				
+				if(best_sol == 0):
 					#sys.exit()
 					#print("best")
-					#break
+					break
 		else:
 			if(np.random.rand() <= math.exp(- delta_cost / T )):
 				cur_sol = new_sol
 
 		if(best_sol < 10000):
-			end_time = time.time()
-			#break
+			sols.append(best_sol)
+			counts.append(count)
+
+			
+
 			
 		T *= r
 
@@ -578,7 +598,14 @@ if __name__ == '__main__':
 		print(f"{request.vehicle_id} {request.service_type} {request.S_exe} {request.S_deliver} {request.start_exe_time} {request.catch_time}")
 
 	print("count: " + str(count))
-	print(f"time: {end_time - start_time}")
+	#print(f"time: {end_time - start_time}")
 
-	#plt.plot(count, sols)
-	sys.exit()
+	if(config['CREATE_PLOT_FILE'] == True):	
+		out_file = open(config['PLOT_FILE'], "w")
+		for i in range(len(sols)):
+			out_file.write(f"{counts[i]} {sols[i]}")
+			out_file.write("\n")
+
+	#plt.plot(counts, sols)
+	#plt.show()
+	#sys.exit()
