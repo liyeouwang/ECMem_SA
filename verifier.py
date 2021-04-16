@@ -1,5 +1,8 @@
 import numpy as np
 
+IN_FILE = '/testcases/05.in'
+OUT_FILE = 'output/12.out'
+
 # Read input
 I = int(input())
 J = int(input())
@@ -46,10 +49,11 @@ F = np.array(F)
 R = []
 for i in range(0, I):
     R.append([])
-    for j in range(0, J):
-        R[-1].append([])
-        for val in [int(x) for x in input().split()]:
-            R[-1][-1].append(val)
+    R_it = input().split(',')
+    for r in R_it:
+        cum_t = int(r.split()[0])
+        cur_j = int(r.split()[1])
+        R[-1].extend([cur_j for _ in range (cum_t)])
 R = np.array(R)
 
 M = np.array([int(x) for x in input().split()])
@@ -59,7 +63,6 @@ def print_mistake(violation, dec_var):
     print(violation, dec_var)
 
 
-OUT_FILE = 'output/05.out'
 
 obj_value = 0
 decisions = []
@@ -97,18 +100,23 @@ for dec_var in decisions:
             empty_flag = False
             break
 
+    # print(scheduling_table)
     if (empty_flag):
         for exec_time in range(s, s+C[e][k]):
             scheduling_table[e][exec_time] = (s, k)
     else:
+        print(dec_var, C[e][k], T[e][k])
+        print(scheduling_table[e])
+        # if (scheduling_table[e][s] is None):
+        #     print_mistake('(3.1.1)', dec_var)
         if (scheduling_table[e][s][0] != s or scheduling_table[e][s][1] != k):
-            print_mistake('(3.1)', dec_var)
-            print(scheduling_table)
+            print_mistake('(3.1.2)', dec_var)
 
     # Constraint (3.2)
     # Start execution time must be larger than the earliest execution time.
     if (s < T[e][k]):
         print_mistake('(3.2)', dec_var)
+        # print(f'Excution time: {e}, earliest execution time: {}')
     
     # Constraint (3.3)
     # Only after being sent to the delivery server, the result can be delivered.
@@ -127,10 +135,10 @@ for dec_var in decisions:
 
     # Constraint (3.6)
     # The vehicle must be reachable.
-    if (R[i][d][t] == 0):
+    if (R[i][t] != d):
         print('(3.6)', dec_var)
-
-
+    print(dec_var, C[e][k])
+print(scheduling_table)
 
 
 
