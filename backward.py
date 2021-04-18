@@ -83,33 +83,7 @@ class Request:
 		self.ideal_slots = [0] * num_servers
 		self.earliest_start_time = 0 # = T_request
 
-def decide_delivery_time():
-	for request in requests:
-		request.catch_time = min(request.deadline, T_MAX-1)
-		for j in range(len(servers)):
-			if(vehicles[request.vehicle_id].range[j][request.catch_time] == 1):
-				request.S_deliver = j
-				break
 
-# TODO: need to consider deadline !! 
-# and freshness 
-def partition_ideal_range():
-	for request in requests:
-		for j in range(len(servers)):
-			for jj in vehicles[request.vehicle_id].servers:
-				T_deliver = services[request.service_type].T_deliver[j][jj]
-				T_compute = services[request.service_type].T_compute[j]
-				T_request = services[request.service_type].T_request[j]
-				if(T_compute + T_deliver <= request.freshness):
-					for i in range(len(servers[jj].vehicle_in[request.vehicle_id])):
-						if(servers[jj].vehicle_in[request.vehicle_id][i] <= request.deadline):
-							start = max(T_request, servers[jj].vehicle_in[request.vehicle_id][i] - T_deliver - T_compute)
-							end = min(request.deadline - T_deliver, servers[jj].vehicle_out[request.vehicle_id][i] - T_deliver)
-			
-							if(end - start > services[request.service_type].T_compute[j]):
-								request.ideal_slots[j].append(Slot(start, end))
-
-	
 
 def sort_requests():
 	requests = sort(requests, key = lambda x: x.size, inverse = True) 
@@ -169,15 +143,26 @@ def fit(ideal_slot, request, server):
 			break
 
 	return is_scheduled
-def ideal_scheduling(request, possible_servers):
+def ideal_scheduling2(request, possible_servers):
+	#print(" ")
 	for s in possible_servers:
-		for ideal_slot in request.ideal_slots[s[0]]:
-			if(fit(ideal_slot, request, servers[s[0]]) == True):
-				request.S_exe = s[0]
-				return True
-
-		# find ideal slot in this server
-		# update server loading
+		j = s[0]
+		#print(j)
+		for jj in vehicles[request.vehicle_id].servers:
+			T_deliver = services[request.service_type].T_deliver[j][jj]
+			T_compute = services[request.service_type].T_compute[j]
+			T_request = services[request.service_type].T_request[j]
+			if(T_compute + T_deliver <= request.freshness):
+				for i in range(len(servers[jj].vehicle_in[request.vehicle_id])):
+					if(servers[jj].vehicle_in[request.vehicle_id][i] <= request.deadline):
+						start = max(T_request, servers[jj].vehicle_in[request.vehicle_id][i] - T_deliver - T_compute)
+						end = min(request.deadline - T_deliver, servers[jj].vehicle_out[request.vehicle_id][i] - T_deliver)
+		
+						if(end - start > services[request.service_type].T_compute[j]):
+							if(fit(Slot(start, end), request, servers[s[0]]) == True):
+								request.S_exe = s[0]
+								return True
+	#print("no")
 def non_ideal_scheduling(request, possible_servers):
 	for s in possible_servers:
 		if(find_slot(request, servers[s[0]]) == True):
@@ -189,13 +174,18 @@ def non_ideal_scheduling(request, possible_servers):
 	print("can't schedule")
 
 def update_server_loading(possible_servers, request):
+	#print(possible_servers)
 	possible_servers.remove((request.S_exe, servers[request.S_exe].loading))
+	#print(f"{(request.S_exe, servers[request.S_exe].loading)}")
 	servers[request.S_exe].loading += request.T_compute
 	possible_servers.append((request.S_exe, servers[request.S_exe].loading))
 	possible_servers = sorted(possible_servers, key=lambda x: x[1])
+	#print(possible_servers)
+	#print(" ")
+	#input("Press Enter to continue...")
+	#sys.exit()
 
 def assign_to_servers():
-
 	for server in servers:
 		server.slots.clear()
 		server.slots.append(Slot(0, T_MAX-1))
@@ -204,30 +194,12 @@ def assign_to_servers():
 		possible_servers.append((s, servers[s].loading))
 
 	for request in requests:
-		if(ideal_scheduling(request, possible_servers) == True):	
+		if(ideal_scheduling2(request, possible_servers) == True):	
+			update_server_loading(possible_servers, request)
 			continue
 		else:
 			non_ideal_scheduling(request, possible_servers)
-
-		update_server_loading(possible_servers, request)
-
-
-
-def decide_exe_servers():
-
-	sorted_requests = sorted(requests, key = lambda x: x.deadline) 
-	
-
-	j = 0
-	for request in sorted_requests:
-		request.S_exe = j
-		request.T_compute = services[request.service_type].T_compute[j]
-		request.T_deliver = services[request.service_type].T_deliver[j][request.S_deliver]
-		servers[j].exe_queue.append(request.ID)
-		#no consider freshness
-		j+=1
-		if(j >= len(servers)):
-			j = 0
+			update_server_loading(possible_servers, request)
 
 '''
 slot: (start, end]
@@ -271,73 +243,6 @@ def find_slot(request, server):
 
 	return is_scheduled
 
-
-def decide_exe_priority():
-
-	'''
-	for each server
-		prioritize tasks in decreasing order based on their memory size (or should be T_compute? )
-		for each prioritized task
-			schedule it in the latest possible free slot that meets its deadline (latest start exe time)
-
-			if can't schedule it:
-				move it to another queue (may be reassigned to another server) 
-	'''
-
-	for request in requests:
-		request.earliest_start_time = max(request.T_request, request.catch_time - request.freshness)
-		request.latest_start_time = request.catch_time - request.T_deliver - request.T_compute
-
-	for server in servers:
-
-		queue = []
-		for r in server.exe_queue:
-			queue.append(requests[r])
-		queue.sort(key=lambda x: x.size, reverse=True)
-		#queue.sort(key=lambda x: x.T_compute, reverse=True)
-
-		server.reassign_list.clear()
-		server.slots.clear()
-		server.slots.append(Slot(0, T_MAX-1))
-		#find_slot(queue, server)
-		for request in queue:
-			if(find_slot(request, server) == False):
-				server.reassign_list.append(request)
-
-	#sys.exit()
-
-def refresh(request, new_server):
-	request.S_exe = new_server.server_id
-	request.T_request = services[request.service_type].T_request[new_server.server_id]
-	request.T_compute = services[request.service_type].T_compute[new_server.server_id]
-	request.T_deliver = services[request.service_type].T_deliver[new_server.server_id][request.S_deliver]
-	request.earliest_start_time = max(request.T_request, request.catch_time - request.freshness)
-	request.latest_start_time = request.catch_time - request.T_deliver - request.T_compute
-
-def balance_servers_load():
-
-	for server in servers:
-		is_scheduled_list = []
-		print("server id: "+str(server.server_id) + " len of reassign_list " + str(len(server.reassign_list)))
-		for request in server.reassign_list:
-			print(request.ID)
-			for new_server in servers:
-				refresh(request, new_server)
-				is_scheduled = find_slot(request, new_server)
-				if(is_scheduled == True):
-					is_scheduled_list.append(request)
-					print("is_scheduled: " + str(request.ID))
-					break
-					#server.reassign_list.remove(request)
-		
-		print("server id: "+str(server.server_id) + " len of reassign_list " + str(len(server.reassign_list)))
-		for scheduled_request in is_scheduled_list:
-			print(scheduled_request.ID)
-			server.reassign_list.remove(scheduled_request)
-
-	for server in servers:
-		print("len of reassign_list " + str(len(server.reassign_list)))
-
 def find_better_deliver_servers():
 	for request in requests:
 		is_catch = False
@@ -353,7 +258,7 @@ def find_better_deliver_servers():
 			else:
 				is_catch = True
 				catch_time = servers[j].in_range[request.vehicle_id][index]
-				if(catch_time > request.deadline):
+				if(catch_time > request.deadline or request.T_compute + T_deliver > request.freshness):
 					waiting_time = 1000000
 				else:
 					waiting_time = catch_time - finish_time
@@ -537,8 +442,8 @@ if __name__ == '__main__':
 
 
 	#decide_delivery_time()
-	partition_ideal_range()
-	print(time.time() - start_time)
+	#partition_ideal_range()
+	#print(time.time() - start_time)
 
 	assign_to_servers()
 	print(time.time() - start_time)
@@ -555,7 +460,7 @@ if __name__ == '__main__':
 	print(time.time() - start_time)
 	
 	end_time = time.time()
-	sys.exit()
+	#sys.exit()
 
 	print(sol)
 	for request in requests: 
@@ -563,3 +468,122 @@ if __name__ == '__main__':
 			print("no catch")
 		print(f"{request.vehicle_id} {request.service_type} {request.S_exe} {request.S_deliver} {request.start_exe_time} {request.catch_time}")
 
+
+def decide_exe_priority():
+
+	'''
+	for each server
+		prioritize tasks in decreasing order based on their memory size (or should be T_compute? )
+		for each prioritized task
+			schedule it in the latest possible free slot that meets its deadline (latest start exe time)
+
+			if can't schedule it:
+				move it to another queue (may be reassigned to another server) 
+	'''
+
+	for request in requests:
+		request.earliest_start_time = max(request.T_request, request.catch_time - request.freshness)
+		request.latest_start_time = request.catch_time - request.T_deliver - request.T_compute
+
+	for server in servers:
+
+		queue = []
+		for r in server.exe_queue:
+			queue.append(requests[r])
+		queue.sort(key=lambda x: x.size, reverse=True)
+		#queue.sort(key=lambda x: x.T_compute, reverse=True)
+
+		server.reassign_list.clear()
+		server.slots.clear()
+		server.slots.append(Slot(0, T_MAX-1))
+		#find_slot(queue, server)
+		for request in queue:
+			if(find_slot(request, server) == False):
+				server.reassign_list.append(request)
+
+	#sys.exit()
+
+def refresh(request, new_server):
+	request.S_exe = new_server.server_id
+	request.T_request = services[request.service_type].T_request[new_server.server_id]
+	request.T_compute = services[request.service_type].T_compute[new_server.server_id]
+	request.T_deliver = services[request.service_type].T_deliver[new_server.server_id][request.S_deliver]
+	request.earliest_start_time = max(request.T_request, request.catch_time - request.freshness)
+	request.latest_start_time = request.catch_time - request.T_deliver - request.T_compute
+
+def balance_servers_load():
+
+	for server in servers:
+		is_scheduled_list = []
+		print("server id: "+str(server.server_id) + " len of reassign_list " + str(len(server.reassign_list)))
+		for request in server.reassign_list:
+			print(request.ID)
+			for new_server in servers:
+				refresh(request, new_server)
+				is_scheduled = find_slot(request, new_server)
+				if(is_scheduled == True):
+					is_scheduled_list.append(request)
+					print("is_scheduled: " + str(request.ID))
+					break
+					#server.reassign_list.remove(request)
+		
+		print("server id: "+str(server.server_id) + " len of reassign_list " + str(len(server.reassign_list)))
+		for scheduled_request in is_scheduled_list:
+			print(scheduled_request.ID)
+			server.reassign_list.remove(scheduled_request)
+
+	for server in servers:
+		print("len of reassign_list " + str(len(server.reassign_list)))
+
+def decide_exe_servers():
+
+	sorted_requests = sorted(requests, key = lambda x: x.deadline) 
+	
+
+	j = 0
+	for request in sorted_requests:
+		request.S_exe = j
+		request.T_compute = services[request.service_type].T_compute[j]
+		request.T_deliver = services[request.service_type].T_deliver[j][request.S_deliver]
+		servers[j].exe_queue.append(request.ID)
+		#no consider freshness
+		j+=1
+		if(j >= len(servers)):
+			j = 0
+
+def decide_delivery_time():
+	for request in requests:
+		request.catch_time = min(request.deadline, T_MAX-1)
+		for j in range(len(servers)):
+			if(vehicles[request.vehicle_id].range[j][request.catch_time] == 1):
+				request.S_deliver = j
+				break
+
+# TODO: need to consider deadline !! 
+# and freshness 
+def partition_ideal_range():
+	for request in requests:
+		for j in range(len(servers)):
+			for jj in vehicles[request.vehicle_id].servers:
+				T_deliver = services[request.service_type].T_deliver[j][jj]
+				T_compute = services[request.service_type].T_compute[j]
+				T_request = services[request.service_type].T_request[j]
+				if(T_compute + T_deliver <= request.freshness):
+					for i in range(len(servers[jj].vehicle_in[request.vehicle_id])):
+						if(servers[jj].vehicle_in[request.vehicle_id][i] <= request.deadline):
+							start = max(T_request, servers[jj].vehicle_in[request.vehicle_id][i] - T_deliver - T_compute)
+							end = min(request.deadline - T_deliver, servers[jj].vehicle_out[request.vehicle_id][i] - T_deliver)
+			
+							if(end - start > services[request.service_type].T_compute[j]):
+								request.ideal_slots[j].append(Slot(start, end))
+
+
+def ideal_scheduling(request, possible_servers):
+	for s in possible_servers:
+		for ideal_slot in request.ideal_slots[s[0]]:
+			if(fit(ideal_slot, request, servers[s[0]]) == True):
+				request.S_exe = s[0]
+				return True
+
+		# find ideal slot in this server
+		# update server loading

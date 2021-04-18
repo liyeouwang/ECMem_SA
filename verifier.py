@@ -139,6 +139,3 @@ for dec_var in decisions:
         print('(3.6)', dec_var)
     print(dec_var, C[e][k])
 print(scheduling_table)
-
-
-
