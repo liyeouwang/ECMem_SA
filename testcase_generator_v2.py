@@ -213,6 +213,8 @@ for testcase_index in range(TESTCASE_NUMS):
                     src_y = src_y + 1
                 elif (r == 4):
                     src_y = src_y - 1
+                src_x = src_x % X
+                src_y = src_y % Y
 
             if t >= MAX_TIME:
                 break
