@@ -80,3 +80,17 @@ Update R format to reduce file size.
 # ...
 # server 4 when t = ...., MAX_TIME-1
 ```
+
+### 2021/04/25 Mopdify Computation Time Generation
+Now the generation of C is decided by "the difficulty of a service" and "the computation power of a server".
+C = "the difficulty of a service" / "the computation power of a server".
+
+The following example shows how to set computation power of servers. There will be 60% servers with 1 computation power, 30% servers with 3 computation power, and 10% servers with 10 computation power.
+```python
+config = {
+    ...
+    'COMPUTATION_POWER': [1, 3, 10],
+    'COMPUTATION_DIST': [0.6, 0.3, 0.1],
+    ...
+}
+```
